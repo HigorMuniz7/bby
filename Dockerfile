@@ -1,32 +1,34 @@
+FROM python:3.10-slim
 
-FROM python:3.11-slim
-
-# Instala dependências do sistema
+# Instala dependências
 RUN apt-get update && apt-get install -y \
-    wget unzip curl gnupg2 fonts-liberation libnss3 libxss1 libasound2 libatk1.0-0 \
-    libatk-bridge2.0-0 libcups2 libdbus-1-3 libdrm2 libgbm1 libnspr4 \
-    libxcomposite1 libxdamage1 libxrandr2 xdg-utils && \
-    rm -rf /var/lib/apt/lists/*
+    wget curl unzip gnupg ca-certificates \
+    fonts-liberation libnss3 libxss1 libappindicator3-1 libasound2 \
+    libatk-bridge2.0-0 libgtk-3-0 libu2f-udev libvulkan1 xdg-utils \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# Instala o Google Chrome (versão estável atual)
-RUN wget https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb && \
-    apt install -y ./google-chrome-stable_current_amd64.deb && \
-    rm google-chrome-stable_current_amd64.deb
+# Instala versão específica do Chrome e ChromeDriver (compatíveis entre si)
+RUN wget -q https://storage.googleapis.com/chrome-for-testing-public/122.0.6261.111/linux/x64/chrome-linux64.zip && \
+    unzip chrome-linux64.zip && \
+    mv chrome-linux64 /opt/chrome && \
+    ln -s /opt/chrome/chrome /usr/bin/google-chrome && \
+    rm chrome-linux64.zip
 
-# Instala o ChromeDriver fixo compatível (v122)
-RUN CHROMEDRIVER_VERSION=122.0.6261.111 && \
-    wget -O /tmp/chromedriver.zip https://chromedriver.storage.googleapis.com/${CHROMEDRIVER_VERSION}/chromedriver_linux64.zip && \
-    unzip /tmp/chromedriver.zip -d /usr/local/bin && \
-    rm /tmp/chromedriver.zip
+RUN wget -q https://storage.googleapis.com/chrome-for-testing-public/122.0.6261.111/linux/x64/chromedriver-linux64.zip && \
+    unzip chromedriver-linux64.zip && \
+    mv chromedriver-linux64/chromedriver /usr/local/bin/ && \
+    chmod +x /usr/local/bin/chromedriver && \
+    rm -rf chromedriver-linux64.zip chromedriver-linux64
 
-# Cria diretório do app
-WORKDIR /app
-
-# Copia os arquivos do projeto
-COPY . .
+# Variáveis de ambiente para o Chrome
+ENV CHROME_BIN=/usr/bin/google-chrome
+ENV PATH="/usr/local/bin:${PATH}"
 
 # Instala dependências Python
+COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Comando para rodar o bot
+# Copia código
+COPY . .
+
 CMD ["python", "bot.py"]
